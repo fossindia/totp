@@ -1,3 +1,5 @@
+![TOTP Authenticator App Banner](assets/images/banner.png)
+
 # TOTP Authenticator App
 
 An open-source, secure, and user-friendly Time-based One-Time Password (TOTP) authenticator application built with Flutter. This app aims to provide a reliable solution for managing your 2-Factor Authentication (2FA) tokens locally on your device.
