@@ -1,0 +1,10 @@
+Introducing the first version of our open-source Time-based One-Time Password (TOTP) application! This app is built with Flutter and provides a secure and convenient way to manage your two-factor authentication (2FA) accounts.
+
+Key Features:
+*   **Easy Setup:** Quickly add your 2FA accounts by scanning a QR code.
+*   **Secure Storage:** Your accounts are stored securely using encrypted storage.
+*   **Biometric Authentication:** Protect your accounts with fingerprint or face authentication.
+*   **Home Screen Widgets:** Access your TOTP codes directly from your home screen for quick and easy access.
+*   **Account Management:** Easily edit and manage your accounts.
+*   **Clean & Simple UI:** A user-friendly interface with both light and dark themes.
+*   **Open Source:** The app is fully open-source, so you can be confident in its security.
