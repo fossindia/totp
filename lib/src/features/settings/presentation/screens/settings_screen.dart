@@ -10,7 +10,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
 import 'package:totp/src/features/totp_management/totp_manager.dart';
-import 'package:url_launcher/url_launcher.dart'; // Add this import
+import 'package:url_launcher/url_launcher.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -22,26 +24,84 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late SharedPreferences _prefs;
   late PackageInfo _packageInfo;
+  late LocalAuthentication _localAuth;
+  late FlutterSecureStorage _secureStorage;
 
   bool _isLoading = true;
   bool _copyTotpOnTap = true;
   int _totpRefreshInterval = 30; // Default value
+  bool _biometricAuthEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    _localAuth = LocalAuthentication();
+    _secureStorage = const FlutterSecureStorage();
     _loadSettings();
   }
 
   Future<void> _loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
     _packageInfo = await PackageInfo.fromPlatform();
+    final String? biometricAuthEnabledString =
+        await _secureStorage.read(key: 'biometricAuthEnabled');
 
     setState(() {
       _copyTotpOnTap = _prefs.getBool('copyTotpOnTap') ?? true;
       _totpRefreshInterval = _prefs.getInt('totpRefreshInterval') ?? 30;
+      _biometricAuthEnabled = biometricAuthEnabledString == 'true';
       _isLoading = false;
     });
+  }
+
+  Future<void> _setBiometricAuth(bool value) async {
+    if (value) {
+      // Try to authenticate if enabling
+      bool authenticated = false;
+      try {
+        authenticated = await _localAuth.authenticate(
+          localizedReason: 'Please authenticate to enable biometric authentication',
+          options: const AuthenticationOptions(
+            stickyAuth: true,
+            biometricOnly: true,
+          ),
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error during biometric authentication: $e')),
+          );
+        }
+        // If authentication fails, don't enable biometrics
+        setState(() {
+          _biometricAuthEnabled = false;
+        });
+        return;
+      }
+
+      if (authenticated) {
+        await _secureStorage.write(key: 'biometricAuthEnabled', value: 'true');
+        setState(() {
+          _biometricAuthEnabled = true;
+        });
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Biometric authentication cancelled or failed.')),
+          );
+        }
+        // If not authenticated, keep biometrics disabled
+        setState(() {
+          _biometricAuthEnabled = false;
+        });
+      }
+    } else {
+      // If disabling, just set to false
+      await _secureStorage.write(key: 'biometricAuthEnabled', value: 'false');
+      setState(() {
+        _biometricAuthEnabled = false;
+      });
+    }
   }
 
   Future<void> _setCopyTotpOnTap(bool value) async {
@@ -215,6 +275,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: const Text('TOTP Refresh Interval'),
                   subtitle: Text('$_totpRefreshInterval seconds'),
                   onTap: () => _showRefreshIntervalDialog(context),
+                ),
+
+                // Security Section
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Security',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                SwitchListTile(
+                  title: const Text('Enable Biometric Authentication'),
+                  subtitle: const Text(
+                      'Use fingerprint or face recognition to unlock the app'),
+                  value: _biometricAuthEnabled,
+                  onChanged: _setBiometricAuth,
                 ),
 
                 // Data Management
