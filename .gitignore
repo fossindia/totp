@@ -49,7 +49,8 @@ app.*.map.json
 
 # Settings file
 settings.txt
-logs.txt
+*.txt
+*.sh
 *upload-keystore.jks
 
 # Local properties
