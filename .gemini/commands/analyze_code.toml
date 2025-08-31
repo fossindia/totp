@@ -1,0 +1,5 @@
+description = "Runs static analysis on the project using flutter analyze."
+prompt = """
+I am running static analysis on the project. Here is the output:
+!{flutter analyze}
+"""

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
 import 'package:flutter/services.dart';
 import 'dart:developer';
 import 'package:totp/src/core/constants/colors.dart';
 import 'package:totp/src/core/constants/strings.dart';
+import 'package:totp/src/core/services/auth_service.dart';
 
 class LockScreen extends StatefulWidget {
   final VoidCallback onAuthenticated;
@@ -15,56 +15,24 @@ class LockScreen extends StatefulWidget {
 }
 
 class _LockScreenState extends State<LockScreen> {
-  final LocalAuthentication auth = LocalAuthentication();
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
-    _checkBiometrics();
-    _getAvailableBiometrics();
     _authenticate(); // Automatically trigger authentication on load
   }
 
-  Future<void> _checkBiometrics() async {
-    try {
-      await auth.canCheckBiometrics;
-    } on PlatformException catch (e) {
-      log(e.toString());
-    }
-    if (!mounted) {
-      return;
-    }
-  }
-
-  Future<void> _getAvailableBiometrics() async {
-    try {
-      await auth.getAvailableBiometrics();
-    } on PlatformException catch (e) {
-      log(e.toString());
-    }
-    if (!mounted) {
-      return;
-    }
-  }
-
   Future<void> _authenticate() async {
-    bool authenticated = false;
-    try {
-      authenticated = await auth.authenticate(
-        localizedReason: AppStrings.biometricAuthentication,
-        options: const AuthenticationOptions(stickyAuth: true),
-      );
-    } on PlatformException catch (e) {
-      log(e.toString());
-    }
+    bool authenticated = await _authService.authenticate();
+
     if (!mounted) {
       return;
     }
 
     if (authenticated) {
       log('Authenticated successfully!');
-      widget
-          .onAuthenticated(); // Call the callback on successful authentication
+      widget.onAuthenticated(); // Call the callback on successful authentication
     } else {
       log('Authentication failed or cancelled.');
     }

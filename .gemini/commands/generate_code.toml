@@ -1,0 +1,5 @@
+description = "Runs code generation tools (e.g., build_runner)."
+prompt = """
+I am running code generation. Here is the output:
+!{flutter pub run build_runner build --delete-conflicting-outputs}
+"""

@@ -125,7 +125,9 @@ class _TotpListState extends State<TotpList> {
                 decoration: InputDecoration(
                   hintText: AppStrings.search,
                   hintStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withAlpha(153),
                     fontSize: 18,
                   ),
                   prefixIcon: const Icon(
@@ -134,9 +136,7 @@ class _TotpListState extends State<TotpList> {
                     size: 28,
                   ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onChanged: (query) {
                   context.read<TotpBloc>().add(
@@ -159,7 +159,8 @@ class _TotpListState extends State<TotpList> {
           if (showNoMatchingResultsMessage) {
             totalListItems += 1; // For "No matching items found" message
           } else {
-            totalListItems += state.filteredTotpItems.length; // For actual TOTP items
+            totalListItems +=
+                state.filteredTotpItems.length; // For actual TOTP items
           }
           totalListItems += 1; // For bottom padding
 
@@ -181,19 +182,25 @@ class _TotpListState extends State<TotpList> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
-                          color: Theme.of(context).colorScheme.onSurface.withAlpha(180),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withAlpha(180),
                         ),
                       ),
                     ),
                   );
                 } else {
                   // Display TOTP cards
-                  final item = state.filteredTotpItems[index - 1]; // Adjust index for search bar
+                  final item =
+                      state.filteredTotpItems[index -
+                          1]; // Adjust index for search bar
                   final otp = _totpService.generateTotp(
                     item.secret,
                     _totpRefreshInterval,
                   );
-                  final remainingSeconds = _totpService.getRemainingSeconds(_totpRefreshInterval);
+                  final remainingSeconds = _totpService.getRemainingSeconds(
+                    _totpRefreshInterval,
+                  );
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: TotpCard(
@@ -208,9 +215,7 @@ class _TotpListState extends State<TotpList> {
                         );
                         if (edited == true) {
                           if (!mounted) return;
-                          context.read<TotpBloc>().add(
-                            LoadTotpItems(),
-                          );
+                          context.read<TotpBloc>().add(LoadTotpItems());
                         }
                       },
                     ),

@@ -1,0 +1,5 @@
+description = "Executes all tests in the test/ directory using flutter test."
+prompt = """
+I am running the project's tests. Here is the output:
+!{flutter test}
+"""

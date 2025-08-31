@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:totp/src/features/totp_management/models/totp_item.dart';
-import 'package:totp/src/features/totp_management/totp_manager.dart';
 import 'package:go_router/go_router.dart';
+import 'package:totp/src/core/services/qr_code_processor_service.dart';
 
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({super.key});
@@ -14,7 +13,7 @@ class QRScannerScreen extends StatefulWidget {
 
 class _QRScannerScreenState extends State<QRScannerScreen>
     with WidgetsBindingObserver {
-  final TotpManager _totpManager = TotpManager();
+  final QrCodeProcessorService _qrCodeProcessorService = QrCodeProcessorService();
   final MobileScannerController _cameraController = MobileScannerController();
 
   final ValueNotifier<bool> _isControllerReady = ValueNotifier<bool>(false);
@@ -93,27 +92,59 @@ class _QRScannerScreenState extends State<QRScannerScreen>
     _processing = true;
 
     try {
-      final Uri uri = Uri.parse(qrData);
-      debugPrint(
-        'Parsed URI: scheme=${uri.scheme}, host=${uri.host}, '
-        'pathSegments=${uri.pathSegments}, queryParameters=${uri.queryParameters}',
-      );
+      final result = await _qrCodeProcessorService.processQrCode(qrData);
 
-      if (uri.scheme == 'otpauth' && uri.host == 'totp') {
-        final String? secret = uri.queryParameters['secret']?.trim();
-        debugPrint('Extracted Secret: $secret'); // Add this line for debugging
-        final String? issuer = uri.queryParameters['issuer'];
-        final String label = uri.pathSegments.isNotEmpty
-            ? uri.pathSegments.last
-            : 'Unknown';
+      switch (result.type) {
+        case QrCodeProcessResultType.success:
+          if (!mounted) return;
+          final bool? confirm = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Add TOTP Account'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Service: ${result.totpItem!.serviceName}'),
+                  Text('Account: ${result.totpItem!.username}'),
+                  const SizedBox(height: 8),
+                  const Text('Do you want to add this account?'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => context.pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => context.pop(true),
+                  child: const Text('Add'),
+                ),
+              ],
+            ),
+          );
 
-        if (secret == null || secret.isEmpty) {
+          if (confirm == true) {
+            await _qrCodeProcessorService.addTotpItem(result.totpItem!);
+            if (!mounted) return;
+            context.pop(true);
+          } else {
+            if (mounted) {
+              try {
+                await _cameraController.start();
+              } catch (_) {}
+            }
+          }
+          break;
+        case QrCodeProcessResultType.invalidFormat:
+        case QrCodeProcessResultType.noSecret:
+        case QrCodeProcessResultType.error:
           if (!mounted) return;
           await showDialog<void>(
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Error'),
-              content: const Text('QR Code does not contain a secret.'),
+              content: Text(result.errorMessage!),
               actions: [
                 TextButton(
                   onPressed: () => context.pop(),
@@ -127,23 +158,8 @@ class _QRScannerScreenState extends State<QRScannerScreen>
               await _cameraController.start();
             } catch (_) {}
           }
-          _processing = false;
-          return;
-        }
-
-        final String username = label.contains(':')
-            ? label.split(':').last
-            : label;
-        final TotpItem newItem = TotpItem(
-          id: '',
-          serviceName: issuer ?? label,
-          username: username,
-          secret: secret,
-        );
-
-        bool isDuplicate = await _totpManager.doesTotpItemExist(newItem);
-
-        if (isDuplicate) {
+          break;
+        case QrCodeProcessResultType.duplicate:
           if (!mounted) return;
           await showDialog<void>(
             context: context,
@@ -153,8 +169,8 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Service: ${newItem.serviceName}'),
-                  Text('Account: ${newItem.username}'),
+                  Text('Service: ${result.totpItem!.serviceName}'),
+                  Text('Account: ${result.totpItem!.username}'),
                   const SizedBox(height: 8),
                   const Text('This account is already in your list.'),
                 ],
@@ -172,88 +188,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
               await _cameraController.start();
             } catch (_) {}
           }
-          _processing = false;
-          return;
-        }
-
-        // If not a duplicate, proceed with the original confirmation and add logic
-        if (!mounted) return; // Fix for use_build_context_synchronously
-        final bool? confirm = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Add TOTP Account'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Service: ${newItem.serviceName}'),
-                Text('Account: ${newItem.username}'),
-                const SizedBox(height: 8),
-                const Text('Do you want to add this account?'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => context.pop(false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => context.pop(true),
-                child: const Text('Add'),
-              ),
-            ],
-          ),
-        );
-
-        if (confirm == true) {
-          await _totpManager.addTotpItem(newItem);
-          if (!mounted) return;
-          context.pop(true);
-        } else {
-          if (mounted) {
-            try {
-              await _cameraController.start();
-            } catch (_) {}
-          }
-        }
-      } else {
-        if (!mounted) return;
-        await showDialog<void>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Error'),
-            content: const Text('Invalid TOTP QR Code format.'),
-            actions: [
-              TextButton(
-                onPressed: () => context.pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        if (mounted) {
-          try {
-            await _cameraController.start();
-          } catch (_) {}
-        }
-      }
-    } catch (e) {
-      debugPrint('Error parsing QR code: $e');
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Error'),
-          content: Text('Error parsing QR Code: $e'),
-          actions: [
-            TextButton(onPressed: () => context.pop(), child: const Text('OK')),
-          ],
-        ),
-      );
-      if (mounted) {
-        try {
-          await _cameraController.start();
-        } catch (_) {}
+          break;
       }
     } finally {
       _processing = false;

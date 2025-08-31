@@ -1,0 +1,12 @@
+description = "Scaffolds a new feature directory (e.g., lib/features/{{args}})."
+prompt = """
+I will now scaffold the directory structure for the new feature '{{args}}'.
+!{mkdir -p lib/features/{{args}}/data/repositories lib/features/{{args}}/domain/usecases lib/features/{{args}}/presentation/bloc lib/features/{{args}}/presentation/view lib/features/{{args}}/presentation/widgets}
+
+The following directories have been created for the '{{args}}' feature:
+- lib/features/{{args}}/data/repositories
+- lib/features/{{args}}/domain/usecases
+- lib/features/{{args}}/presentation/bloc
+- lib/features/{{args}}/presentation/view
+- lib/features/{{args}}/presentation/widgets
+"""

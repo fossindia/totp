@@ -1,0 +1,5 @@
+description = "Adds a new dependency to pubspec.yaml."
+prompt = """
+I am adding the dependency '{{args}}'. Here is the output:
+!{flutter pub add {{args}}}
+"""

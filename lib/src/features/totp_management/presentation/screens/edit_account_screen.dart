@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:totp/src/core/constants/colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:totp/src/blocs/totp_bloc/totp_bloc.dart';
+import 'package:totp/src/blocs/totp_bloc/totp_event.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
-import 'package:totp/src/features/totp_management/totp_manager.dart';
 
 class EditAccountScreen extends StatefulWidget {
   final TotpItem totpItem;
@@ -50,18 +52,15 @@ class _EditAccountScreenState extends State<EditAccountScreen> {
             : _categoryController.text,
       );
 
-      final TotpManager totpManager = TotpManager();
       final messenger = ScaffoldMessenger.of(context);
       final router = GoRouter.of(context);
 
-      await totpManager.updateTotpItem(updatedItem);
+      context.read<TotpBloc>().add(UpdateTotpItem(updatedItem));
 
       if (!mounted) return;
-      // ignore: use_build_context_synchronously
       messenger.showSnackBar(
         const SnackBar(content: Text('Account updated successfully!')),
       );
-      // ignore: use_build_context_synchronously
       router.pop(true);
     }
   }
@@ -88,18 +87,15 @@ class _EditAccountScreenState extends State<EditAccountScreen> {
     );
 
     if (confirmDelete == true) {
-      final TotpManager totpManager = TotpManager();
       final messenger = ScaffoldMessenger.of(context);
       final router = GoRouter.of(context);
 
-      await totpManager.deleteTotpItem(widget.totpItem.id);
+      context.read<TotpBloc>().add(DeleteTotpItem(widget.totpItem.id));
 
       if (!mounted) return;
-      // ignore: use_build_context_synchronously
       messenger.showSnackBar(
         const SnackBar(content: Text('Account deleted successfully!')),
       );
-      // ignore: use_build_context_synchronously
       router.pop(true); // Pop with true to indicate a change
     }
   }

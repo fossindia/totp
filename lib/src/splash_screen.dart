@@ -17,7 +17,8 @@ class SplashScreen extends StatelessWidget {
     );
 
     return Directionality(
-      textDirection: TextDirection.ltr, // Or TextDirection.rtl based on your app's primary direction
+      textDirection: TextDirection
+          .ltr, // Or TextDirection.rtl based on your app's primary direction
       child: Scaffold(
         backgroundColor: AppColors.darkGrey,
         body: Center(

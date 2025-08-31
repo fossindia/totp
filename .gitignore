@@ -58,3 +58,6 @@ settings.txt
 .env
 /release_apks/
 /release_apks_old/
+GEMINI.md
+.gemini/settings.json
+

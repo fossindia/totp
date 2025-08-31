@@ -9,8 +9,9 @@ import 'package:totp/src/features/totp_management/presentation/screens/edit_acco
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
 
 Future<GoRouter> createRouter(FlutterSecureStorage secureStorage) async {
-  final String? biometricAuthEnabledString =
-      await secureStorage.read(key: 'biometricAuthEnabled');
+  final String? biometricAuthEnabledString = await secureStorage.read(
+    key: 'biometricAuthEnabled',
+  );
   final bool biometricAuthEnabled = biometricAuthEnabledString == 'true';
 
   return GoRouter(

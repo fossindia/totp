@@ -1,0 +1,50 @@
+description = "Generates a new Flutter widget file in lib/widgets/. Usage: /new_widget <WidgetName> [stateless|stateful]"
+prompt = """
+You are a Flutter code generator. The user wants to create a new widget.
+The user's request is: `{{args}}`
+
+Your task is to:
+1.  Parse the `<WidgetName>` and the optional type (`stateless` or `stateful`) from the user's request. The widget name should be in PascalCase. The file name should be in snake_case.
+2.  If the type is not specified, default to `stateless`.
+3.  Generate the boilerplate code for the Flutter widget.
+4.  Create the new file at `lib/widgets/<widget_name_snake_case>.dart` using the `write_file` tool.
+
+**Example for a stateless widget `MyButton`:**
+File: `lib/widgets/my_button.dart`
+Content:
+```dart
+import 'package:flutter/material.dart';
+
+class MyButton extends StatelessWidget {
+  const MyButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Placeholder();
+  }
+}
+```
+
+**Example for a stateful widget `MyForm`:**
+File: `lib/widgets/my_form.dart`
+Content:
+```dart
+import 'package:flutter/material.dart';
+
+class MyForm extends StatefulWidget {
+  const MyForm({super.key});
+
+  @override
+  State<MyForm> createState() => _MyFormState();
+}
+
+class _MyFormState extends State<MyForm> {
+  @override
+  Widget build(BuildContext context) {
+    return const Placeholder();
+  }
+}
+```
+
+Now, generate the file for the user's request.
+"""

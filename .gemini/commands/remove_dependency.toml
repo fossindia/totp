@@ -1,0 +1,5 @@
+description = "Removes a dependency from pubspec.yaml."
+prompt = """
+I am removing the dependency '{{args}}'. Here is the output:
+!{flutter pub remove {{args}}}
+"""

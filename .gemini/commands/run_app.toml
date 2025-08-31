@@ -1,0 +1,5 @@
+description = "Runs the Flutter application on a connected device or emulator."
+prompt = """
+I am running the Flutter application. Here is the output:
+!{flutter run}
+"""

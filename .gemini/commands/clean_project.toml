@@ -1,0 +1,5 @@
+description = "Cleans the Flutter project."
+prompt = """
+I am cleaning the Flutter project. Here is the output:
+!{flutter clean}
+"""

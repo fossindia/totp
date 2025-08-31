@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totp/src/features/home/presentation/widgets/totp_list.dart';
-import 'package:totp/src/core/constants/colors.dart';
-import 'package:totp/src/core/constants/strings.dart';
+import 'package:totp/src/features/home/presentation/widgets/home_app_bar.dart';
+import 'package:totp/src/features/home/presentation/widgets/home_floating_action_button.dart';
 import 'package:totp/src/features/totp_management/totp_manager.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_bloc.dart';
@@ -70,60 +69,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.transparent,
-        title: Text(
-          AppStrings.totpAuthenticator,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          PopupMenuButton<String>(
-            position: PopupMenuPosition.under,
-            icon: Icon(
-              Icons.filter_alt_outlined,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 28,
-            ),
-            onSelected: (String newValue) {
-              setState(() {
-                _selectedCategory = newValue == 'All' ? null : newValue;
-                context.read<TotpBloc>().add(
-                  SearchTotpItems(_searchController.text, _selectedCategory),
-                );
-              });
-            },
-            itemBuilder: (BuildContext context) {
-              return _categories.map((String category) {
-                return PopupMenuItem<String>(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 0,
-                  ),
-
-                  value: category,
-                  child: Text(category),
-                );
-              }).toList();
-            },
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.settings_outlined,
-              color: Theme.of(context).colorScheme.onSurface,
-              size: 28,
-            ),
-            onPressed: () {
-              context.push('/settings');
-            },
-          ),
-        ],
+      appBar: HomeAppBar(
+        categories: _categories,
+        selectedCategory: _selectedCategory,
+        onCategorySelected: (newValue) {
+          setState(() {
+            _selectedCategory = newValue;
+          });
+        },
+        searchController: _searchController,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -134,18 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
           searchQueryNotifier: _searchQuery,
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await context.push<bool>('/qr_scanner');
-          if (result == true) {
-            if (!mounted) return;
-            context.read<TotpBloc>().add(LoadTotpItems());
-          }
-        },
-        backgroundColor: AppColors.primaryPurple,
-        elevation: 5,
-        child: const Icon(Icons.add_outlined, color: AppColors.white, size: 32),
-      ),
+      floatingActionButton: const HomeFloatingActionButton(),
     );
   }
 }
