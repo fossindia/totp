@@ -10,7 +10,11 @@ class DataManagementService {
   final TotpManager _totpManager;
 
   DataManagementService({TotpManager? totpManager})
-      : _totpManager = totpManager ?? TotpManager();
+    : _totpManager = totpManager ?? TotpManager();
+
+  Future<List<TotpItem>> loadTotpItemsForCheck() async {
+    return await _totpManager.loadTotpItems();
+  }
 
   Future<void> exportAccounts() async {
     final List<TotpItem> items = await _totpManager.loadTotpItems();

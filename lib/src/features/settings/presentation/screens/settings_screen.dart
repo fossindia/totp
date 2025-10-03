@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:totp/src/core/services/settings_service.dart';
 import 'package:totp/src/core/services/auth_service.dart';
 import 'package:totp/src/core/services/data_management_service.dart';
+import 'package:totp/src/features/totp_management/models/totp_item.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -135,6 +136,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportAccounts() async {
     try {
+      // First check if there are any accounts to export
+      final List<TotpItem> items = await _dataManagementService
+          .loadTotpItemsForCheck();
+      if (items.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No accounts available to export')),
+          );
+        }
+        return;
+      }
+
       await _dataManagementService.exportAccounts();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,9 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '$newItemsCount new accounts imported successfully!',
-            ),
+            content: Text('$newItemsCount new accounts imported successfully!'),
           ),
         );
       }
