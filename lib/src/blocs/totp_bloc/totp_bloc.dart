@@ -1,9 +1,14 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_event.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_state.dart';
+import 'package:totp/src/core/errors/error_handler.dart';
 import 'package:totp/src/features/totp_management/totp_manager.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
 
+/// BLoC for managing TOTP items state and operations.
+///
+/// Handles loading, adding, updating, deleting, and searching TOTP items.
+/// Uses [TotpManager] for data persistence.
 class TotpBloc extends Bloc<TotpEvent, TotpState> {
   final TotpManager _totpManager;
   List<TotpItem> _allTotpItems = [];
@@ -16,6 +21,7 @@ class TotpBloc extends Bloc<TotpEvent, TotpState> {
     on<SearchTotpItems>(_onSearchTotpItems);
   }
 
+  /// Loads TOTP items from storage and emits success or failure state.
   Future<void> _onLoadTotpItems(
     LoadTotpItems event,
     Emitter<TotpState> emit,
@@ -29,11 +35,13 @@ class TotpBloc extends Bloc<TotpEvent, TotpState> {
           filteredTotpItems: _allTotpItems,
         ),
       );
-    } catch (e) {
-      emit(TotpLoadFailure(e.toString()));
+    } catch (e, stackTrace) {
+      ErrorHandler.handleError(e, stackTrace);
+      emit(TotpLoadFailure('Failed to load TOTP items'));
     }
   }
 
+  /// Adds a new TOTP item and reloads the list.
   Future<void> _onAddTotpItem(
     AddTotpItem event,
     Emitter<TotpState> emit,
@@ -41,8 +49,9 @@ class TotpBloc extends Bloc<TotpEvent, TotpState> {
     try {
       await _totpManager.addTotpItem(event.totpItem);
       add(LoadTotpItems()); // Reload items after adding
-    } catch (e) {
-      emit(TotpLoadFailure(e.toString()));
+    } catch (e, stackTrace) {
+      ErrorHandler.handleError(e, stackTrace);
+      emit(TotpLoadFailure('Failed to add TOTP item'));
     }
   }
 
@@ -53,8 +62,9 @@ class TotpBloc extends Bloc<TotpEvent, TotpState> {
     try {
       await _totpManager.updateTotpItem(event.totpItem);
       add(LoadTotpItems()); // Reload items after updating
-    } catch (e) {
-      emit(TotpLoadFailure(e.toString()));
+    } catch (e, stackTrace) {
+      ErrorHandler.handleError(e, stackTrace);
+      emit(TotpLoadFailure('Failed to update TOTP item'));
     }
   }
 
@@ -65,11 +75,13 @@ class TotpBloc extends Bloc<TotpEvent, TotpState> {
     try {
       await _totpManager.deleteTotpItem(event.id);
       add(LoadTotpItems()); // Reload items after deleting
-    } catch (e) {
-      emit(TotpLoadFailure(e.toString()));
+    } catch (e, stackTrace) {
+      ErrorHandler.handleError(e, stackTrace);
+      emit(TotpLoadFailure('Failed to delete TOTP item'));
     }
   }
 
+  /// Filters TOTP items based on search query and category.
   void _onSearchTotpItems(SearchTotpItems event, Emitter<TotpState> emit) {
     if (state is TotpLoadSuccess) {
       final currentState = state as TotpLoadSuccess;

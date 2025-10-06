@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
 import 'package:totp/src/core/constants/colors.dart';
 import 'package:totp/src/core/constants/strings.dart';
 import 'package:totp/src/core/di/service_locator.dart';
+import 'package:totp/src/core/services/settings_service.dart';
 import 'package:totp/src/features/totp_generation/totp_service.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_bloc.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_state.dart';
@@ -36,9 +36,9 @@ class _TotpCardState extends State<TotpCard> {
   }
 
   Future<void> _loadCopyTotpOnTapSetting() async {
-    final prefs = await SharedPreferences.getInstance();
+    final settingsService = getService<SettingsService>();
     setState(() {
-      _copyTotpOnTap = prefs.getBool('copyTotpOnTap') ?? true;
+      _copyTotpOnTap = settingsService.getCopyTotpOnTap();
     });
   }
 

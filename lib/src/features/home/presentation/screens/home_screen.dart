@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totp/src/features/home/presentation/widgets/totp_list.dart';
 import 'package:totp/src/features/home/presentation/widgets/home_app_bar.dart';
 import 'package:totp/src/features/home/presentation/widgets/home_floating_action_button.dart';
+import 'package:totp/src/core/di/service_locator.dart';
 import 'package:totp/src/features/totp_management/totp_manager.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_bloc.dart';
@@ -36,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadCategories() async {
-    final TotpManager totpManager = TotpManager();
+    final totpManager = getService<TotpManager>();
     final List<TotpItem> items = await totpManager.loadTotpItems();
     final Set<String> uniqueCategories = items
         .where((item) => item.category != null && item.category!.isNotEmpty)

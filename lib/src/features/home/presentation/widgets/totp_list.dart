@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:totp/src/features/home/presentation/widgets/totp_card.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totp/src/core/constants/strings.dart';
 import 'package:totp/src/core/constants/colors.dart';
+import 'package:totp/src/core/di/service_locator.dart';
+import 'package:totp/src/core/services/settings_service.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_bloc.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_event.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_state.dart';
@@ -42,9 +43,9 @@ class _TotpListState extends State<TotpList> {
   }
 
   Future<void> _loadRefreshInterval() async {
-    final prefs = await SharedPreferences.getInstance();
+    final settingsService = getService<SettingsService>();
     setState(() {
-      _totpRefreshInterval = prefs.getInt('totpRefreshInterval') ?? 30;
+      _totpRefreshInterval = settingsService.getTotpRefreshInterval();
     });
   }
 

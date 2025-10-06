@@ -6,11 +6,37 @@ An open-source, secure, and user-friendly Time-based One-Time Password (TOTP) au
 
 ## Features
 
-*   **Secure Storage**: Encrypts and securely stores your 2FA secrets on your device.
-*   **QR Code Scanner**: Easily add new accounts by scanning standard TOTP QR codes.
-*   **Time-Based OTP Generation**: Generates accurate and timely one-time passwords.
+*   **Secure Storage**: Encrypts and securely stores your 2FA secrets on your device using AES encryption.
+*   **QR Code Scanner**: Easily add new accounts by scanning standard TOTP QR codes with validation.
+*   **Time-Based OTP Generation**: Generates accurate and timely one-time passwords with caching for performance.
 *   **User-Friendly Interface**: A clean and intuitive design for seamless token management.
 *   **Offline Access**: Generate OTPs even without an internet connection.
+*   **Biometric Authentication**: Optional biometric login for enhanced security.
+*   **Data Import/Export**: Backup and restore your accounts as JSON files.
+
+## Architecture
+
+The app follows a clean architecture with separation of concerns:
+
+- **Presentation Layer**: Screens and widgets using BLoC pattern for state management.
+- **Domain Layer**: Business logic in services and managers.
+- **Data Layer**: Secure storage with encryption utilities.
+- **Core Layer**: Shared utilities, error handling, and dependency injection.
+
+Key components:
+- `TotpBloc`: Manages TOTP item states and operations.
+- `TotpManager`: Handles data persistence with encryption.
+- `TotpService`: Generates TOTP codes with caching.
+- `QrCodeProcessorService`: Validates and processes QR codes.
+- `SettingsService`: Manages app settings.
+
+## Security
+
+- Secrets are encrypted using AES-256-CBC with random IVs.
+- Data stored in platform secure storage (FlutterSecureStorage).
+- Input sanitization for QR codes to prevent injection attacks.
+- Biometric authentication for app access.
+- No network requests; all operations offline.
 
 ## Getting Started
 
@@ -37,6 +63,19 @@ Ensure you have the Flutter SDK installed on your system. You can find detailed 
     ```bash
     flutter run
     ```
+4.  **Run tests:**
+    ```bash
+    flutter test
+    ```
+
+## Testing
+
+The project includes unit tests for core utilities and services. To ensure code quality:
+
+- Run `flutter test` to execute all tests.
+- Add tests for new features in the `test/` directory.
+- Use mockito for mocking dependencies in service tests.
+- Aim for high test coverage, especially for business logic and error handling.
 
 ## Contributing
 

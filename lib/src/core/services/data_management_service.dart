@@ -36,7 +36,7 @@ class DataManagementService {
       allowedExtensions: ['json'],
     );
 
-    if (result != null) {
+    if (result != null && result.files.single.path != null) {
       final file = File(result.files.single.path!);
       final String jsonString = await file.readAsString();
 
