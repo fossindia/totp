@@ -35,30 +35,55 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
-        PopupMenuButton<String>(
-          position: PopupMenuPosition.under,
-          icon: Icon(
-            Icons.filter_alt_outlined,
-            color: Theme.of(context).colorScheme.onSurface,
-            size: 28,
-          ),
-          onSelected: (String newValue) {
-            onCategorySelected(newValue == 'All' ? null : newValue);
-            context.read<TotpBloc>().add(
-                  SearchTotpItems(searchController.text, newValue == 'All' ? null : newValue),
+        // Use an explicit IconButton + showMenu to avoid a framework bug where
+        // PopupMenuButton's internal ancestor lookup can run against a
+        // deactivated context (causing "Looking up a deactivated widget's ancestor is unsafe").
+        Builder(
+          builder: (builderContext) {
+            return IconButton(
+              icon: Icon(
+                Icons.filter_alt_outlined,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 28,
+              ),
+              onPressed: () async {
+                // Compute the button's rect & overlay size to position the menu.
+                final RenderBox button =
+                    builderContext.findRenderObject() as RenderBox;
+                final RenderBox overlay =
+                    Overlay.of(builderContext).context.findRenderObject()
+                        as RenderBox;
+                final RelativeRect position = RelativeRect.fromRect(
+                  button.localToGlobal(Offset.zero) & button.size,
+                  Offset.zero & overlay.size,
                 );
-          },
-          itemBuilder: (BuildContext context) {
-            return categories.map((String category) {
-              return PopupMenuItem<String>(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 0,
-                ),
-                value: category,
-                child: Text(category),
-              );
-            }).toList();
+
+                final String? selected = await showMenu<String>(
+                  context: builderContext,
+                  position: position,
+                  items: categories.map((String category) {
+                    return PopupMenuItem<String>(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 0,
+                      ),
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                );
+
+                if (selected != null) {
+                  onCategorySelected(selected == 'All' ? null : selected);
+                  builderContext.read<TotpBloc>().add(
+                    SearchTotpItems(
+                      searchController.text,
+                      selected == 'All' ? null : selected,
+                    ),
+                  );
+                }
+              },
+            );
           },
         ),
         IconButton(

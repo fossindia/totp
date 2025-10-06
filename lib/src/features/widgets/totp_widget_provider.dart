@@ -26,10 +26,10 @@ Future<void> updateTotpWidget() async {
     final TotpItem firstItem = totpItems.first;
     final String otp = totpService.generateTotp(
       firstItem.secret,
-      totpRefreshInterval,
+      interval: totpRefreshInterval,
     );
     final int remainingSeconds = totpService.getRemainingSeconds(
-      totpRefreshInterval,
+      interval: totpRefreshInterval,
     );
 
     await HomeWidget.saveWidgetData('serviceName', firstItem.serviceName);

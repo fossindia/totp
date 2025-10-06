@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:totp/src/features/home/presentation/widgets/totp_card.dart';
-import 'package:totp/src/features/totp_generation/totp_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:totp/src/core/constants/strings.dart';
 import 'package:totp/src/core/constants/colors.dart';
@@ -30,7 +29,6 @@ class TotpList extends StatefulWidget {
 }
 
 class _TotpListState extends State<TotpList> {
-  final TotpService _totpService = TotpService();
   Timer? _ticker;
   int _totpRefreshInterval = 30; // Default value
 
@@ -194,19 +192,10 @@ class _TotpListState extends State<TotpList> {
                   final item =
                       state.filteredTotpItems[index -
                           1]; // Adjust index for search bar
-                  final otp = _totpService.generateTotp(
-                    item.secret,
-                    _totpRefreshInterval,
-                  );
-                  final remainingSeconds = _totpService.getRemainingSeconds(
-                    _totpRefreshInterval,
-                  );
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: TotpCard(
                       totpItem: item,
-                      otp: otp,
-                      remainingSeconds: remainingSeconds,
                       interval: _totpRefreshInterval,
                       onEdit: () async {
                         final bool? edited = await context.push<bool>(
