@@ -5,6 +5,7 @@ import 'package:totp/src/core/services/settings_service.dart';
 import 'package:totp/src/core/services/auth_service.dart';
 import 'package:totp/src/core/services/data_management_service.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
+import 'package:totp/src/features/settings/presentation/widgets/performance_dashboard.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -253,6 +254,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ListTile(
                   title: const Text('Import Accounts'),
                   onTap: _importAccounts,
+                ),
+
+                // Development Section
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Development',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Performance Dashboard'),
+                  subtitle: const Text('View app performance metrics'),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const PerformanceDashboard(),
+                      ),
+                    );
+                  },
                 ),
 
                 // About Section

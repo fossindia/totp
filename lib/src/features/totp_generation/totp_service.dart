@@ -1,6 +1,7 @@
 import 'package:totp_generator/totp_generator.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:totp/src/core/services/performance_monitor_service.dart';
 
 // Background computation function for TOTP generation
 String _generateTotpInBackground(_TotpGenerationParams params) {
@@ -74,68 +75,112 @@ class TotpService {
     String secret, {
     int interval = _defaultInterval,
   }) async {
-    final cacheKey = '${secret}_$interval';
-    final now = DateTime.now();
-    final currentTimeWindow = now.millisecondsSinceEpoch ~/ (interval * 1000);
+    final timer = PerformanceTimer('TOTP Generation Async');
 
-    // Check if we have a valid cached entry
-    final cachedEntry = _cache[cacheKey];
-    if (cachedEntry != null && cachedEntry.timeWindow == currentTimeWindow) {
-      return cachedEntry.code;
+    try {
+      final cacheKey = '${secret}_$interval';
+      final now = DateTime.now();
+      final currentTimeWindow = now.millisecondsSinceEpoch ~/ (interval * 1000);
+
+      // Check if we have a valid cached entry
+      final cachedEntry = _cache[cacheKey];
+      if (cachedEntry != null && cachedEntry.timeWindow == currentTimeWindow) {
+        PerformanceMonitor.recordEvent(
+          'TOTP Cache Hit Async',
+          PerformanceEventType.cache,
+          metadata: {'secret_length': secret.length, 'interval': interval},
+        );
+        timer.finish(additionalMetadata: {'result': 'cache_hit'});
+        return cachedEntry.code;
+      }
+
+      // Generate new TOTP code in background isolate
+      final params = _TotpGenerationParams(
+        secret: secret,
+        encoding: 'base32',
+        algorithm: HashAlgorithm.sha1,
+        interval: interval,
+      );
+
+      final newCode = await compute(_generateTotpInBackground, params);
+
+      // Cache the new code
+      _cache[cacheKey] = _TotpCacheEntry(
+        code: newCode,
+        timeWindow: currentTimeWindow,
+        expiryTime: now.add(
+          Duration(seconds: interval + 5),
+        ), // Add 5 second buffer
+      );
+
+      PerformanceMonitor.recordEvent(
+        'TOTP Generation Async',
+        PerformanceEventType.operation,
+        metadata: {'secret_length': secret.length, 'interval': interval},
+      );
+
+      timer.finish(additionalMetadata: {'result': 'generated'});
+      return newCode;
+    } catch (e) {
+      timer.finish(
+        additionalMetadata: {'result': 'error', 'error': e.toString()},
+      );
+      rethrow;
     }
-
-    // Generate new TOTP code in background isolate
-    final params = _TotpGenerationParams(
-      secret: secret,
-      encoding: 'base32',
-      algorithm: HashAlgorithm.sha1,
-      interval: interval,
-    );
-
-    final newCode = await compute(_generateTotpInBackground, params);
-
-    // Cache the new code
-    _cache[cacheKey] = _TotpCacheEntry(
-      code: newCode,
-      timeWindow: currentTimeWindow,
-      expiryTime: now.add(
-        Duration(seconds: interval + 5),
-      ), // Add 5 second buffer
-    );
-
-    return newCode;
   }
 
   String generateTotp(String secret, {int interval = _defaultInterval}) {
-    final cacheKey = '${secret}_$interval';
-    final now = DateTime.now();
-    final currentTimeWindow = now.millisecondsSinceEpoch ~/ (interval * 1000);
+    final timer = PerformanceTimer('TOTP Generation Sync');
 
-    // Check if we have a valid cached entry
-    final cachedEntry = _cache[cacheKey];
-    if (cachedEntry != null && cachedEntry.timeWindow == currentTimeWindow) {
-      return cachedEntry.code;
+    try {
+      final cacheKey = '${secret}_$interval';
+      final now = DateTime.now();
+      final currentTimeWindow = now.millisecondsSinceEpoch ~/ (interval * 1000);
+
+      // Check if we have a valid cached entry
+      final cachedEntry = _cache[cacheKey];
+      if (cachedEntry != null && cachedEntry.timeWindow == currentTimeWindow) {
+        PerformanceMonitor.recordEvent(
+          'TOTP Cache Hit',
+          PerformanceEventType.cache,
+          metadata: {'secret_length': secret.length, 'interval': interval},
+        );
+        timer.finish(additionalMetadata: {'result': 'cache_hit'});
+        return cachedEntry.code;
+      }
+
+      // Generate new TOTP code (synchronous for backward compatibility)
+      final totp = TOTPGenerator();
+      final newCode = totp.generateTOTP(
+        secret: secret,
+        encoding: 'base32',
+        algorithm: HashAlgorithm.sha1,
+        interval: interval,
+      );
+
+      // Cache the new code
+      _cache[cacheKey] = _TotpCacheEntry(
+        code: newCode,
+        timeWindow: currentTimeWindow,
+        expiryTime: now.add(
+          Duration(seconds: interval + 5),
+        ), // Add 5 second buffer
+      );
+
+      PerformanceMonitor.recordEvent(
+        'TOTP Generation',
+        PerformanceEventType.operation,
+        metadata: {'secret_length': secret.length, 'interval': interval},
+      );
+
+      timer.finish(additionalMetadata: {'result': 'generated'});
+      return newCode;
+    } catch (e) {
+      timer.finish(
+        additionalMetadata: {'result': 'error', 'error': e.toString()},
+      );
+      rethrow;
     }
-
-    // Generate new TOTP code (synchronous for backward compatibility)
-    final totp = TOTPGenerator();
-    final newCode = totp.generateTOTP(
-      secret: secret,
-      encoding: 'base32',
-      algorithm: HashAlgorithm.sha1,
-      interval: interval,
-    );
-
-    // Cache the new code
-    _cache[cacheKey] = _TotpCacheEntry(
-      code: newCode,
-      timeWindow: currentTimeWindow,
-      expiryTime: now.add(
-        Duration(seconds: interval + 5),
-      ), // Add 5 second buffer
-    );
-
-    return newCode;
   }
 
   int getRemainingSeconds({int interval = _defaultInterval}) {
@@ -164,8 +209,27 @@ class TotpService {
     List<String> secrets, {
     int interval = _defaultInterval,
   }) {
-    for (final secret in secrets) {
-      generateTotp(secret, interval: interval);
+    final timer = PerformanceTimer('TOTP Batch Preload Sync', {
+      'batch_size': secrets.length,
+    });
+
+    try {
+      for (final secret in secrets) {
+        generateTotp(secret, interval: interval);
+      }
+
+      PerformanceMonitor.recordEvent(
+        'TOTP Batch Preload',
+        PerformanceEventType.operation,
+        metadata: {'batch_size': secrets.length, 'interval': interval},
+      );
+
+      timer.finish(additionalMetadata: {'result': 'success'});
+    } catch (e) {
+      timer.finish(
+        additionalMetadata: {'result': 'error', 'error': e.toString()},
+      );
+      rethrow;
     }
   }
 
@@ -174,34 +238,56 @@ class TotpService {
     List<String> secrets, {
     int interval = _defaultInterval,
   }) async {
-    if (secrets.isEmpty) return;
+    final timer = PerformanceTimer('TOTP Batch Preload Async', {
+      'batch_size': secrets.length,
+    });
 
-    // Use batch processing for better performance
-    final params = _BatchTotpGenerationParams(
-      secrets: secrets,
-      encoding: 'base32',
-      algorithm: HashAlgorithm.sha1,
-      interval: interval,
-    );
+    try {
+      if (secrets.isEmpty) {
+        timer.finish(additionalMetadata: {'result': 'empty_batch'});
+        return;
+      }
 
-    final codes = await compute(_generateBatchTotpInBackground, params);
-
-    final now = DateTime.now();
-    final currentTimeWindow = now.millisecondsSinceEpoch ~/ (interval * 1000);
-
-    // Cache all generated codes
-    for (int i = 0; i < secrets.length; i++) {
-      final secret = secrets[i];
-      final code = codes[i];
-      final cacheKey = '${secret}_$interval';
-
-      _cache[cacheKey] = _TotpCacheEntry(
-        code: code,
-        timeWindow: currentTimeWindow,
-        expiryTime: now.add(
-          Duration(seconds: interval + 5),
-        ), // Add 5 second buffer
+      // Use batch processing for better performance
+      final params = _BatchTotpGenerationParams(
+        secrets: secrets,
+        encoding: 'base32',
+        algorithm: HashAlgorithm.sha1,
+        interval: interval,
       );
+
+      final codes = await compute(_generateBatchTotpInBackground, params);
+
+      final now = DateTime.now();
+      final currentTimeWindow = now.millisecondsSinceEpoch ~/ (interval * 1000);
+
+      // Cache all generated codes
+      for (int i = 0; i < secrets.length; i++) {
+        final secret = secrets[i];
+        final code = codes[i];
+        final cacheKey = '${secret}_$interval';
+
+        _cache[cacheKey] = _TotpCacheEntry(
+          code: code,
+          timeWindow: currentTimeWindow,
+          expiryTime: now.add(
+            Duration(seconds: interval + 5),
+          ), // Add 5 second buffer
+        );
+      }
+
+      PerformanceMonitor.recordEvent(
+        'TOTP Batch Preload Async',
+        PerformanceEventType.operation,
+        metadata: {'batch_size': secrets.length, 'interval': interval},
+      );
+
+      timer.finish(additionalMetadata: {'result': 'success'});
+    } catch (e) {
+      timer.finish(
+        additionalMetadata: {'result': 'error', 'error': e.toString()},
+      );
+      rethrow;
     }
   }
 
@@ -217,11 +303,21 @@ class TotpService {
         .where((entry) => entry.expiryTime.isAfter(now))
         .length;
 
-    return {
+    final stats = {
       'total_entries': _cache.length,
       'valid_entries': validEntries,
       'expired_entries': _cache.length - validEntries,
     };
+
+    // Record cache statistics for monitoring
+    PerformanceMonitor.recordCacheMetrics(
+      'TOTP Cache',
+      hits: validEntries, // Approximate hits as valid entries
+      misses: _cache.length - validEntries,
+      totalRequests: _cache.length,
+    );
+
+    return stats;
   }
 
   void _cleanupExpiredEntries() {
