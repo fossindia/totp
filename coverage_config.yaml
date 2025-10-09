@@ -1,0 +1,33 @@
+# Test Coverage Configuration
+# This file configures test coverage settings for the TOTP Flutter app
+
+# Minimum coverage thresholds
+minimum_coverage: 80
+
+# Exclude files/patterns from coverage
+exclude:
+  - 'lib/main.dart'  # Entry point
+  - 'lib/src/app.dart'  # App widget
+  - 'lib/src/app_router.dart'  # Routing
+  - 'lib/src/splash_screen.dart'  # Simple UI
+  - 'lib/src/**/*.g.dart'  # Generated files
+  - 'lib/src/**/models/*.dart'  # Data models (simple classes)
+  - 'test/**'  # Test files
+
+# Include specific directories for coverage
+include:
+  - 'lib/src/core/**/*.dart'
+  - 'lib/src/features/**/*.dart'
+  - 'lib/src/blocs/**/*.dart'
+
+# Coverage report settings
+report:
+  html: true
+  lcov: true
+  json: false
+  xml: false
+
+# CI/CD settings
+ci:
+  codecov: true
+  minimum_threshold: 75

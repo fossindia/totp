@@ -10,6 +10,7 @@ import 'package:totp/src/core/services/settings_service.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_bloc.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_event.dart';
 import 'package:totp/src/blocs/totp_bloc/totp_state.dart';
+import 'package:totp/src/features/totp_generation/totp_service.dart';
 
 class TotpList extends StatefulWidget {
   final ValueNotifier<bool> isEmptyNotifier;
@@ -32,12 +33,16 @@ class TotpList extends StatefulWidget {
 class _TotpListState extends State<TotpList> {
   Timer? _ticker;
   int _totpRefreshInterval = 30; // Default value
+  final ScrollController _scrollController = ScrollController();
+  final Set<String> _visibleItems =
+      {}; // Track visible item IDs for lazy loading
 
   @override
   void initState() {
     super.initState();
     _loadRefreshInterval();
     _startTicker();
+    _setupScrollController();
     // Dispatch LoadTotpItems event when the widget initializes
     context.read<TotpBloc>().add(LoadTotpItems());
   }
@@ -55,9 +60,109 @@ class _TotpListState extends State<TotpList> {
     });
   }
 
+  void _setupScrollController() {
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    // Implement lazy loading when scrolling near the end
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
+      _loadMoreItemsIfNeeded();
+    }
+  }
+
+  void _loadMoreItemsIfNeeded() {
+    // This would be used for pagination in the future
+    // For now, it's a placeholder for potential infinite scroll
+  }
+
+  /// Preload TOTP codes for visible items to improve performance
+  void _preloadVisibleItems(List<String> visibleItemIds) {
+    final totpService = getService<TotpService>();
+    final newVisibleItems = visibleItemIds.toSet().difference(_visibleItems);
+
+    if (newVisibleItems.isNotEmpty) {
+      // Preload TOTP codes asynchronously for better performance
+      final secrets = newVisibleItems.toList();
+      totpService
+          .preloadTotpCodesAsync(secrets, interval: _totpRefreshInterval)
+          .then((_) {
+            // Update visible items after successful preloading
+            _visibleItems.addAll(newVisibleItems);
+          })
+          .catchError((error) {
+            // Fallback to synchronous preloading if async fails
+            totpService.preloadTotpCodes(
+              secrets,
+              interval: _totpRefreshInterval,
+            );
+            _visibleItems.addAll(newVisibleItems);
+          });
+    }
+
+    // Clean up items that are no longer visible
+    final noLongerVisible = _visibleItems.difference(visibleItemIds.toSet());
+    _visibleItems.removeAll(noLongerVisible);
+  }
+
+  /// Update visible items for lazy loading
+  void _updateVisibleItems() {
+    // Calculate which items are currently visible
+    final viewportDimension = _scrollController.position.viewportDimension;
+    final offset = _scrollController.offset;
+
+    // Estimate visible item indices (rough calculation)
+    final itemHeight = 120.0; // Approximate height of each item
+    final firstVisibleIndex = (offset / itemHeight).floor();
+    final visibleCount =
+        (viewportDimension / itemHeight).ceil() + 2; // Add buffer
+    final lastVisibleIndex = firstVisibleIndex + visibleCount;
+
+    // Get visible item IDs from current state
+    final blocState = context.read<TotpBloc>().state;
+    if (blocState is TotpLoadSuccess) {
+      final visibleItems = blocState.filteredTotpItems
+          .skip(firstVisibleIndex.clamp(0, blocState.filteredTotpItems.length))
+          .take(
+            (lastVisibleIndex - firstVisibleIndex).clamp(
+              0,
+              blocState.filteredTotpItems.length,
+            ),
+          )
+          .map((item) => item.secret)
+          .toList();
+
+      _preloadVisibleItems(visibleItems);
+    }
+  }
+
+  /// Build virtualized TOTP card with performance optimizations
+  Widget _buildVirtualizedTotpCard(dynamic item) {
+    return RepaintBoundary(
+      // Isolate repaints for better performance
+      child: TotpCard(
+        key: ValueKey(item.id), // Stable key for efficient recycling
+        totpItem: item,
+        interval: _totpRefreshInterval,
+        onEdit: () async {
+          final bool? edited = await context.push<bool>(
+            '/edit_account',
+            extra: item,
+          );
+          if (edited == true) {
+            if (!mounted) return;
+            context.read<TotpBloc>().add(LoadTotpItems());
+          }
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _ticker?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -163,56 +268,59 @@ class _TotpListState extends State<TotpList> {
           }
           totalListItems += 1; // For bottom padding
 
-          return ListView.builder(
-            itemCount: totalListItems,
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return searchBarWidget;
-              } else if (index == totalListItems - 1) {
-                return const SizedBox(height: 80.0); // Bottom padding
-              } else {
-                // Content area (either message or TOTP cards)
-                if (showNoMatchingResultsMessage) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24.0),
-                      child: Text(
-                        'No matching TOTP items found.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withAlpha(180),
+          return NotificationListener<ScrollNotification>(
+            onNotification: (ScrollNotification scrollInfo) {
+              // Track visible items for lazy loading
+              if (scrollInfo is ScrollUpdateNotification) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _updateVisibleItems();
+                });
+              }
+              return false;
+            },
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: totalListItems,
+              // Add automatic keep alive for better performance
+              addAutomaticKeepAlives: true,
+              // Add semantic indexes for accessibility
+              addSemanticIndexes: true,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return searchBarWidget;
+                } else if (index == totalListItems - 1) {
+                  return const SizedBox(height: 80.0); // Bottom padding
+                } else {
+                  // Content area (either message or TOTP cards)
+                  if (showNoMatchingResultsMessage) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24.0),
+                        child: Text(
+                          'No matching TOTP items found.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withAlpha(180),
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                } else {
-                  // Display TOTP cards
-                  final item =
-                      state.filteredTotpItems[index -
-                          1]; // Adjust index for search bar
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: TotpCard(
-                      totpItem: item,
-                      interval: _totpRefreshInterval,
-                      onEdit: () async {
-                        final bool? edited = await context.push<bool>(
-                          '/edit_account',
-                          extra: item,
-                        );
-                        if (edited == true) {
-                          if (!mounted) return;
-                          context.read<TotpBloc>().add(LoadTotpItems());
-                        }
-                      },
-                    ),
-                  );
+                    );
+                  } else {
+                    // Display TOTP cards with virtualization
+                    final itemIndex = index - 1; // Adjust index for search bar
+                    final item = state.filteredTotpItems[itemIndex];
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: _buildVirtualizedTotpCard(item),
+                    );
+                  }
                 }
-              }
-            },
+              },
+            ),
           );
         }
         return const SizedBox.shrink(); // Default empty widget
