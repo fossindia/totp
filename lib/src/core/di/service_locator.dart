@@ -3,6 +3,7 @@ import 'package:totp/src/core/services/auth_service.dart';
 import 'package:totp/src/core/services/settings_service.dart';
 import 'package:totp/src/core/services/qr_code_processor_service.dart';
 import 'package:totp/src/core/services/data_management_service.dart';
+import 'package:totp/src/core/services/cloud_backup_service.dart';
 import 'package:totp/src/core/utils/encryption_util.dart';
 import 'package:totp/src/features/totp_management/totp_manager.dart';
 import 'package:totp/src/features/totp_generation/totp_service.dart';
@@ -21,6 +22,9 @@ class ServiceLocator {
     _getIt.registerLazySingleton<SettingsService>(() => SettingsService());
     _getIt.registerLazySingleton<DataManagementService>(
       () => DataManagementService(),
+    );
+    _getIt.registerLazySingleton<CloudBackupService>(
+      () => CloudBackupService(),
     );
 
     // TOTP related services
@@ -78,6 +82,7 @@ class ServiceLocator {
       'AuthService',
       'SettingsService',
       'QrCodeProcessorService',
+      'CloudBackupService',
     ];
   }
 }

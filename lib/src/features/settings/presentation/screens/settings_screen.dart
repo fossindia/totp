@@ -5,7 +5,10 @@ import 'package:totp/src/core/services/settings_service.dart';
 import 'package:totp/src/core/services/auth_service.dart';
 import 'package:totp/src/core/services/data_management_service.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
+import 'package:totp/src/features/totp_management/totp_manager.dart';
+import 'package:totp/src/core/di/service_locator.dart';
 import 'package:totp/src/features/settings/presentation/widgets/performance_dashboard.dart';
+import 'package:totp/src/features/settings/presentation/widgets/cloud_backup_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -193,6 +196,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _showEncryptionSettings(BuildContext context) async {
+    final totpManager = getService<TotpManager>();
+    final currentStatus = await totpManager.getEncryptionStatus();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Encryption Settings'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Current Status: $currentStatus'),
+              const SizedBox(height: 16),
+              const Text(
+                'Key rotation generates new encryption keys and securely migrates your data. '
+                'This enhances security but requires all data to be re-encrypted.',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _performKeyRotation();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Rotate Keys'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _performKeyRotation() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final totpManager = getService<TotpManager>();
+      await totpManager.migrateEncryptionKeys();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Encryption keys rotated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to rotate keys: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,6 +319,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _biometricAuthEnabled,
                   onChanged: _setBiometricAuth,
                 ),
+                ListTile(
+                  title: const Text('Encryption Keys'),
+                  subtitle: const Text('Manage encryption keys and security'),
+                  onTap: () => _showEncryptionSettings(context),
+                ),
 
                 // Data Management
                 const Divider(),
@@ -254,6 +341,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ListTile(
                   title: const Text('Import Accounts'),
                   onTap: _importAccounts,
+                ),
+                ListTile(
+                  title: const Text('Cloud Backup'),
+                  subtitle: const Text(
+                    'Backup and restore accounts from cloud',
+                  ),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const CloudBackupScreen(),
+                      ),
+                    );
+                  },
                 ),
 
                 // Development Section

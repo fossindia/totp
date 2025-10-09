@@ -50,6 +50,16 @@ class MockTotpManager implements TotpManager {
           item.secret == newItem.secret,
     );
   }
+
+  @override
+  Future<void> migrateEncryptionKeys() async {
+    // Mock implementation - do nothing
+  }
+
+  @override
+  Future<String> getEncryptionStatus() async {
+    return 'Mock encryption status: Keys are current';
+  }
 }
 
 void main() {
