@@ -27,7 +27,7 @@ class AppError extends Error {
         return 'The QR code format is not supported.';
       case 'INVALID_SECRET':
         return 'The QR code contains invalid security data.';
-      case 'AUTHENTICATION_FAILED':
+      case 'AUTHENTICATION_ERROR':
         return 'Authentication failed. Please try again.';
       case 'STORAGE_ERROR':
         return 'Failed to save data. Please check device storage.';
