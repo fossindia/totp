@@ -35,8 +35,19 @@ class _TotpListState extends State<TotpList> {
   Timer? _ticker;
   int _totpRefreshInterval = 30; // Default value
   final ScrollController _scrollController = ScrollController();
+
+  // Virtualization state
   final Set<String> _visibleItems =
       {}; // Track visible item IDs for lazy loading
+  final Map<String, Widget> _widgetCache = {}; // Cache rendered widgets
+  final Map<String, DateTime> _lastAccessTime =
+      {}; // Track access times for cache cleanup
+  static const int _maxCacheSize = 50; // Maximum cached widgets
+  static const Duration _cacheExpiry = Duration(
+    minutes: 5,
+  ); // Cache expiry time
+
+  // Widget caching for performance optimization
 
   @override
   void initState() {
@@ -88,8 +99,90 @@ class _TotpListState extends State<TotpList> {
   }
 
   void _loadMoreItemsIfNeeded() {
-    // This would be used for pagination in the future
-    // For now, it's a placeholder for potential infinite scroll
+    // For now, show all items initially. This can be enhanced later for true pagination
+    // when the list becomes very large (1000+ items)
+  }
+
+  /// Get paginated items for current page (initially returns all items)
+  List<dynamic> _getPaginatedItems(TotpLoadSuccess state) {
+    // For now, return all filtered items to maintain compatibility
+    // This can be enhanced to true pagination when needed
+    return state.filteredTotpItems;
+  }
+
+  /// Get cached widget or create new one
+  Widget _getCachedWidget(String itemId, Widget Function() widgetBuilder) {
+    // Clean expired cache entries
+    _cleanupExpiredCache();
+
+    // Check if widget is cached and not expired
+    if (_widgetCache.containsKey(itemId)) {
+      _lastAccessTime[itemId] = DateTime.now();
+      return _widgetCache[itemId]!;
+    }
+
+    // Create new widget and cache it
+    final widget = widgetBuilder();
+    _cacheWidget(itemId, widget);
+    return widget;
+  }
+
+  /// Cache a widget
+  void _cacheWidget(String itemId, Widget widget) {
+    // Remove oldest entries if cache is full
+    if (_widgetCache.length >= _maxCacheSize) {
+      _evictOldestCacheEntries();
+    }
+
+    _widgetCache[itemId] = widget;
+    _lastAccessTime[itemId] = DateTime.now();
+  }
+
+  /// Clean up expired cache entries
+  void _cleanupExpiredCache() {
+    final now = DateTime.now();
+    final expiredKeys = <String>[];
+
+    _lastAccessTime.forEach((key, accessTime) {
+      if (now.difference(accessTime) > _cacheExpiry) {
+        expiredKeys.add(key);
+      }
+    });
+
+    for (final key in expiredKeys) {
+      _widgetCache.remove(key);
+      _lastAccessTime.remove(key);
+    }
+  }
+
+  /// Evict oldest cache entries when cache is full
+  void _evictOldestCacheEntries() {
+    if (_lastAccessTime.isEmpty) return;
+
+    // Sort by access time (oldest first)
+    final sortedEntries = _lastAccessTime.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+
+    // Remove oldest 25% of entries
+    final entriesToRemove = (sortedEntries.length * 0.25).ceil();
+    final keysToRemove = sortedEntries.take(entriesToRemove).map((e) => e.key);
+
+    for (final key in keysToRemove) {
+      _widgetCache.remove(key);
+      _lastAccessTime.remove(key);
+    }
+  }
+
+  /// Clear all caches (useful when data changes)
+  void _clearCaches() {
+    _widgetCache.clear();
+    _lastAccessTime.clear();
+    _visibleItems.clear();
+  }
+
+  /// Reset caches when data changes
+  void _resetCaches() {
+    _clearCaches(); // Clear caches when data changes
   }
 
   /// Preload TOTP codes for visible items to improve performance
@@ -179,22 +272,27 @@ class _TotpListState extends State<TotpList> {
 
   /// Build virtualized TOTP card with performance optimizations
   Widget _buildVirtualizedTotpCard(dynamic item) {
-    return RepaintBoundary(
-      // Isolate repaints for better performance
-      child: TotpCard(
-        key: ValueKey(item.id), // Stable key for efficient recycling
-        totpItem: item,
-        interval: _totpRefreshInterval,
-        onEdit: () async {
-          final bool? edited = await context.push<bool>(
-            '/edit_account',
-            extra: item,
-          );
-          if (edited == true) {
-            if (!mounted) return;
-            context.read<TotpBloc>().add(LoadTotpItems());
-          }
-        },
+    return _getCachedWidget(
+      item.id,
+      () => RepaintBoundary(
+        // Isolate repaints for better performance
+        child: TotpCard(
+          key: ValueKey(item.id), // Stable key for efficient recycling
+          totpItem: item,
+          interval: _totpRefreshInterval,
+          onEdit: () async {
+            final bool? edited = await context.push<bool>(
+              '/edit_account',
+              extra: item,
+            );
+            if (edited == true) {
+              if (!mounted) return;
+              // Clear cache when item is edited
+              _clearCaches();
+              context.read<TotpBloc>().add(LoadTotpItems());
+            }
+          },
+        ),
       ),
     );
   }
@@ -203,6 +301,7 @@ class _TotpListState extends State<TotpList> {
   void dispose() {
     _ticker?.cancel();
     _scrollController.dispose();
+    _clearCaches(); // Clean up all caches
     super.dispose();
   }
 
@@ -216,6 +315,8 @@ class _TotpListState extends State<TotpList> {
           if (state is TotpLoadSuccess) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               widget.isEmptyNotifier.value = state.totpItems.isEmpty;
+              // Reset caches when data changes
+              _resetCaches();
             });
           }
         },
@@ -297,6 +398,9 @@ class _TotpListState extends State<TotpList> {
               ),
             );
 
+            // Get paginated items for virtualization
+            final paginatedItems = _getPaginatedItems(state);
+
             // Determine if "No matching TOTP items found." message should be shown
             final bool showNoMatchingResultsMessage =
                 state.filteredTotpItems.isEmpty && state.searchQuery.isNotEmpty;
@@ -306,8 +410,7 @@ class _TotpListState extends State<TotpList> {
             if (showNoMatchingResultsMessage) {
               totalListItems += 1; // For "No matching items found" message
             } else {
-              totalListItems +=
-                  state.filteredTotpItems.length; // For actual TOTP items
+              totalListItems += paginatedItems.length; // For TOTP items
             }
             totalListItems += 1; // For bottom padding
 
@@ -355,12 +458,15 @@ class _TotpListState extends State<TotpList> {
                       // Display TOTP cards with virtualization
                       final itemIndex =
                           index - 1; // Adjust index for search bar
-                      final item = state.filteredTotpItems[itemIndex];
+                      if (itemIndex < paginatedItems.length) {
+                        final item = paginatedItems[itemIndex];
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: _buildVirtualizedTotpCard(item),
-                      );
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: _buildVirtualizedTotpCard(item),
+                        );
+                      }
+                      return const SizedBox.shrink();
                     }
                   }
                 },
