@@ -1,10 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:totp/src/features/home/presentation/widgets/totp_card.dart';
 import 'package:totp/src/features/totp_management/models/totp_item.dart';
+import 'package:totp/src/core/services/settings_service.dart';
+import 'package:totp/src/features/totp_generation/totp_service.dart';
+import 'package:totp/src/core/di/service_locator.dart';
+import 'package:totp/src/blocs/totp_bloc/totp_bloc.dart';
+import 'package:totp/src/blocs/totp_bloc/totp_state.dart';
+
+// Generate mocks
+@GenerateMocks([SettingsService, TotpService, TotpBloc])
+import 'totp_card_test.mocks.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  late MockSettingsService mockSettingsService;
+  late MockTotpService mockTotpService;
+  late MockTotpBloc mockTotpBloc;
+
+  setUp(() {
+    mockSettingsService = MockSettingsService();
+    mockTotpService = MockTotpService();
+    mockTotpBloc = MockTotpBloc();
+
+    // Mock the service methods
+    when(mockSettingsService.getCopyTotpOnTap()).thenReturn(true);
+    when(
+      mockTotpService.generateTotp(any, interval: anyNamed('interval')),
+    ).thenReturn('123456');
+    when(
+      mockTotpService.getRemainingSeconds(interval: anyNamed('interval')),
+    ).thenReturn(25);
+
+    // Mock BLoC state
+    when(
+      mockTotpBloc.state,
+    ).thenReturn(TotpLoadSuccess(totpItems: [], filteredTotpItems: []));
+    when(mockTotpBloc.stream).thenAnswer(
+      (_) =>
+          Stream.value(TotpLoadSuccess(totpItems: [], filteredTotpItems: [])),
+    );
+
+    // Register mocks in service locator
+    ServiceLocator.register<SettingsService>(mockSettingsService);
+    ServiceLocator.register<TotpService>(mockTotpService);
+  });
+
+  tearDown(() {
+    ServiceLocator.reset();
+  });
 
   group('TotpCard Widget Tests', () {
     final testTotpItem = TotpItem(
@@ -20,7 +68,10 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          ),
         ),
       );
 
@@ -36,7 +87,10 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          ),
         ),
       );
 
@@ -58,7 +112,10 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: TotpCard(totpItem: itemWithCategory)),
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(body: TotpCard(totpItem: itemWithCategory)),
+          ),
         ),
       );
 
@@ -80,7 +137,10 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: TotpCard(totpItem: longNameItem)),
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(body: TotpCard(totpItem: longNameItem)),
+          ),
         ),
       );
 
@@ -95,7 +155,10 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          ),
         ),
       );
 
@@ -109,7 +172,10 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          ),
         ),
       );
 
@@ -123,7 +189,10 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(body: TotpCard(totpItem: testTotpItem)),
+          ),
         ),
       );
 
@@ -135,7 +204,12 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: TotpCard(totpItem: testTotpItem, interval: 60)),
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(
+              body: TotpCard(totpItem: testTotpItem, interval: 60),
+            ),
+          ),
         ),
       );
 
@@ -152,10 +226,13 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: TotpCard(
-              totpItem: testTotpItem,
-              onEdit: () => callbackCalled = true,
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(
+              body: TotpCard(
+                totpItem: testTotpItem,
+                onEdit: () => callbackCalled = true,
+              ),
             ),
           ),
         ),
@@ -174,8 +251,11 @@ void main() {
       // Act
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: TotpCard(totpItem: testTotpItem), // No onEdit callback
+          home: BlocProvider<TotpBloc>.value(
+            value: mockTotpBloc,
+            child: Scaffold(
+              body: TotpCard(totpItem: testTotpItem), // No onEdit callback
+            ),
           ),
         ),
       );
