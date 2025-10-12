@@ -46,6 +46,7 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
     });
   }
 
+  // ignore: unused_element
   Future<void> _verifyPin() async {
     final pin = _pinController.text.trim();
 
@@ -140,7 +141,7 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -164,7 +165,7 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
                   fontSize: 14,
                   color: Theme.of(
                     context,
-                  ).colorScheme.onSurface.withOpacity(0.7),
+                  ).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -187,7 +188,7 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
                         ? AppColors.primaryPurple
                         : Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.2),
+                          ).colorScheme.onSurface.withValues(alpha: 0.2),
                   ),
                 );
               }),

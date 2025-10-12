@@ -78,7 +78,7 @@ class EncryptionUtil {
   }
 
   /// Rotate encryption keys for enhanced security (legacy method - use performKeyRotation for migration)
-  @deprecated
+  @Deprecated('Use performKeyRotation() instead for better migration support')
   static Future<void> rotateKeys() async {
     // Generate new cryptographically secure key and IV
     final newKey = Key.fromSecureRandom(32);

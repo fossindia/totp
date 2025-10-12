@@ -123,8 +123,8 @@ void main() {
       const testData = 'test data';
       final originalEncrypted = EncryptionUtil.encrypt(testData);
 
-      // Rotate keys
-      await EncryptionUtil.rotateKeys();
+      // Rotate keys using new method
+      await EncryptionUtil.performKeyRotation();
 
       // Verify new encryption works
       final newEncrypted = EncryptionUtil.encrypt(testData);
