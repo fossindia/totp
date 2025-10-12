@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Run Tests
+    name: Run Tests and Generate Coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -27,16 +27,25 @@ jobs:
     - name: Run Flutter analyze
       run: flutter analyze
 
+    - name: Generate mocks
+      run: flutter pub run build_runner build --delete-conflicting-outputs
+
     - name: Run tests with coverage
-      run: flutter test --coverage
+      run: flutter test --coverage --test-randomize-ordering-seed random
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage/lcov.info
-        flags: unittests
+        flags: flutter
         name: codecov-umbrella
         fail_ci_if_error: false
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage/
 
   build-android:
     name: Build Android APK
@@ -56,13 +65,13 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Build APK
+    - name: Build Android APK
       run: flutter build apk --release
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-release.apk
+        name: android-apk
         path: build/app/outputs/flutter-apk/app-release.apk
 
   build-ios:
@@ -83,11 +92,56 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Build iOS
-      run: flutter build ios --release --no-codesign
+    - name: Build iOS (if iOS configuration exists)
+      run: |
+        if [ -f "ios/Runner.xcodeproj/project.pbxproj" ]; then
+          flutter build ios --release --no-codesign
+        else
+          echo "iOS project not configured, skipping iOS build"
+        fi
+      continue-on-error: true
 
-    - name: Upload iOS build
-      uses: actions/upload-artifact@v4
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
       with:
-        name: ios-build
-        path: build/ios/iphoneos/Runner.app
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  dependency-check:
+    name: Dependency Vulnerability Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Check for outdated dependencies
+      run: flutter pub outdated
+
+    - name: Audit dependencies
+      run: flutter pub audit

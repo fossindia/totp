@@ -1,0 +1,45 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+        threshold: 1%
+
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
+
+github_checks:
+  annotations: true
+
+ignore:
+  - "lib/main.dart"
+  - "lib/src/app.dart"
+  - "lib/src/app_router.dart"
+  - "lib/src/splash_screen.dart"
+  - "test/**"
+  - "android/**"
+  - "ios/**"
+  - "web/**"
+  - "windows/**"
+  - "linux/**"
+  - "macos/**"
+
+flags:
+  flutter:
+    paths:
+      - lib/
+    carryforward: true
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no
